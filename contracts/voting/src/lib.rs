@@ -1,152 +1,103 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short,
-    Address, Env, Map, String, Symbol, Vec,
+    contract, contractimpl, contracttype,
+    Env, String, Vec, Map, Symbol,
 };
 
 #[contracttype]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Proposal {
     pub id: u32,
     pub title: String,
-    pub description: String,
     pub vote_count: u32,
-    pub creator: Address,
-    pub active: bool,
 }
 
 #[contracttype]
 pub enum DataKey {
-    Proposal(u32),
+    Proposals,
+    VoterRecord(String), // wallet address → voted proposal id
     ProposalCount,
-    HasVoted(Address, u32),
-    Admin,
 }
-
-const ADMIN: Symbol = symbol_short!("ADMIN");
 
 #[contract]
 pub struct VotingContract;
 
 #[contractimpl]
 impl VotingContract {
-    /// Initialize the contract with an admin address.
-    pub fn initialize(env: Env, admin: Address) {
-        admin.require_auth();
-        if env.storage().instance().has(&ADMIN) {
-            panic!("already initialized");
-        }
-        env.storage().instance().set(&ADMIN, &admin);
-        env.storage()
-            .instance()
-            .set(&DataKey::ProposalCount, &0u32);
+    /// Initialize with default proposals
+    pub fn initialize(env: Env) {
+        let proposals: Vec<Proposal> = Vec::from_array(
+            &env,
+            [
+                Proposal {
+                    id: 0,
+                    title: String::from_str(&env, "Proposal Alpha"),
+                    vote_count: 0,
+                },
+                Proposal {
+                    id: 1,
+                    title: String::from_str(&env, "Proposal Beta"),
+                    vote_count: 0,
+                },
+                Proposal {
+                    id: 2,
+                    title: String::from_str(&env, "Proposal Gamma"),
+                    vote_count: 0,
+                },
+            ],
+        );
+        env.storage().persistent().set(&DataKey::Proposals, &proposals);
+        env.storage().persistent().set(&DataKey::ProposalCount, &3u32);
     }
 
-    /// Create a new proposal. Only the admin can create proposals.
-    pub fn create_proposal(
-        env: Env,
-        creator: Address,
-        title: String,
-        description: String,
-    ) -> u32 {
-        creator.require_auth();
-
-        let count: u32 = env
-            .storage()
-            .instance()
-            .get(&DataKey::ProposalCount)
-            .unwrap_or(0);
-        let new_id = count + 1;
-
-        let proposal = Proposal {
-            id: new_id,
-            title,
-            description,
-            vote_count: 0,
-            creator: creator.clone(),
-            active: true,
-        };
-
-        env.storage()
-            .instance()
-            .set(&DataKey::Proposal(new_id), &proposal);
-        env.storage()
-            .instance()
-            .set(&DataKey::ProposalCount, &new_id);
-
-        new_id
-    }
-
-    /// Cast a vote for a proposal. Each address can vote once per proposal.
-    pub fn vote(env: Env, voter: Address, proposal_id: u32) {
-        voter.require_auth();
-
-        let voted_key = DataKey::HasVoted(voter.clone(), proposal_id);
-        if env.storage().instance().has(&voted_key) {
-            panic!("already voted");
+    /// Cast a vote for a proposal
+    pub fn vote(env: Env, voter: String, proposal_id: u32) -> Result<(), Symbol> {
+        // Check already voted
+        if env.storage().persistent().has(&DataKey::VoterRecord(voter.clone())) {
+            return Err(Symbol::new(&env, "AlreadyVoted"));
         }
 
-        let mut proposal: Proposal = env
+        let mut proposals: Vec<Proposal> = env
             .storage()
-            .instance()
-            .get(&DataKey::Proposal(proposal_id))
-            .expect("proposal not found");
+            .persistent()
+            .get(&DataKey::Proposals)
+            .unwrap();
 
-        if !proposal.active {
-            panic!("proposal is not active");
+        let count = proposals.len();
+        if proposal_id >= count {
+            return Err(Symbol::new(&env, "InvalidProposal"));
         }
 
+        // Update vote count
+        let mut proposal = proposals.get(proposal_id).unwrap();
         proposal.vote_count += 1;
-        env.storage()
-            .instance()
-            .set(&DataKey::Proposal(proposal_id), &proposal);
-        env.storage().instance().set(&voted_key, &true);
+        proposals.set(proposal_id, proposal);
+
+        env.storage().persistent().set(&DataKey::Proposals, &proposals);
+        env.storage().persistent().set(&DataKey::VoterRecord(voter), &proposal_id);
+
+        Ok(())
     }
 
-    /// Deactivate a proposal (admin only).
-    pub fn close_proposal(env: Env, admin: Address, proposal_id: u32) {
-        admin.require_auth();
-        let stored_admin: Address = env
-            .storage()
-            .instance()
-            .get(&ADMIN)
-            .expect("contract not initialized");
-        if admin != stored_admin {
-            panic!("unauthorized");
-        }
-
-        let mut proposal: Proposal = env
-            .storage()
-            .instance()
-            .get(&DataKey::Proposal(proposal_id))
-            .expect("proposal not found");
-
-        proposal.active = false;
+    /// Get all proposals
+    pub fn get_proposals(env: Env) -> Vec<Proposal> {
         env.storage()
-            .instance()
-            .set(&DataKey::Proposal(proposal_id), &proposal);
+            .persistent()
+            .get(&DataKey::Proposals)
+            .unwrap_or(Vec::new(&env))
     }
 
-    /// Get a proposal by ID.
-    pub fn get_proposal(env: Env, proposal_id: u32) -> Proposal {
+    /// Check if wallet already voted
+    pub fn has_voted(env: Env, voter: String) -> bool {
         env.storage()
-            .instance()
-            .get(&DataKey::Proposal(proposal_id))
-            .expect("proposal not found")
+            .persistent()
+            .has(&DataKey::VoterRecord(voter))
     }
 
-    /// Get the total number of proposals.
-    pub fn get_proposal_count(env: Env) -> u32 {
+    /// Get which proposal a voter voted for
+    pub fn get_vote(env: Env, voter: String) -> Option<u32> {
         env.storage()
-            .instance()
-            .get(&DataKey::ProposalCount)
-            .unwrap_or(0)
-    }
-
-    /// Check whether an address has voted on a given proposal.
-    pub fn has_voted(env: Env, voter: Address, proposal_id: u32) -> bool {
-        env.storage()
-            .instance()
-            .has(&DataKey::HasVoted(voter, proposal_id))
+            .persistent()
+            .get(&DataKey::VoterRecord(voter))
     }
 }
