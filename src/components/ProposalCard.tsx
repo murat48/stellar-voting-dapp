@@ -1,65 +1,82 @@
-import { Proposal } from "../hooks/useVoting";
+import { useState } from "react";
 
-interface Props {
-  proposal: Proposal;
-  totalVotes: number;
-  hasVoted: boolean;
-  votedId: number | null;
-  isVoting: boolean;
-  onVote: (id: number) => void;
+export interface Proposal {
+  id: number;
+  title: string;
+  description: string;
+  voteCount: number;
+  creator: string;
+  active: boolean;
 }
 
-export function ProposalCard({
-  proposal,
-  totalVotes,
-  hasVoted,
-  votedId,
-  isVoting,
-  onVote,
-}: Props) {
-  const percentage =
-    totalVotes > 0
-      ? Math.round((proposal.voteCount / totalVotes) * 100)
-      : 0;
+interface ProposalCardProps {
+  proposal: Proposal;
+  connectedAddress?: string;
+  hasVoted: boolean;
+  onVote: (proposalId: number) => Promise<void>;
+}
 
-  const isMyVote = votedId === proposal.id;
-  const isDisabled = hasVoted || isVoting;
+export default function ProposalCard({
+  proposal,
+  connectedAddress,
+  hasVoted,
+  onVote,
+}: ProposalCardProps) {
+  const [voting, setVoting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleVote = async () => {
+    if (!connectedAddress) {
+      setError("Please connect your wallet first.");
+      return;
+    }
+    setVoting(true);
+    setError(null);
+    try {
+      await onVote(proposal.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Vote failed");
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  const statusLabel = proposal.active ? "Active" : "Closed";
+  const statusClass = proposal.active ? "badge-active" : "badge-closed";
 
   return (
-    <div className={`proposal-card ${isMyVote ? "my-vote" : ""}`}>
+    <div className={`proposal-card ${!proposal.active ? "proposal-inactive" : ""}`}>
       <div className="proposal-header">
-        <h3>{proposal.title}</h3>
-        {isMyVote && <span className="badge">✓ Your Vote</span>}
+        <h3 className="proposal-title">{proposal.title}</h3>
+        <span className={`badge ${statusClass}`}>{statusLabel}</span>
       </div>
 
-      {/* Progress Bar */}
-      <div className="progress-bar-wrapper">
-        <div
-          className="progress-bar-fill"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      <p className="proposal-description">{proposal.description}</p>
 
-      <div className="proposal-stats">
-        <span>{proposal.voteCount} votes</span>
-        <span>{percentage}%</span>
-      </div>
+      <div className="proposal-footer">
+        <span className="vote-count">
+          {proposal.voteCount} vote{proposal.voteCount !== 1 ? "s" : ""}
+        </span>
 
-      <button
-        className="btn btn-vote"
-        onClick={() => onVote(proposal.id)}
-        disabled={isDisabled}
-      >
-        {isVoting && votedId === null ? (
-          <>
-            <span className="spinner" /> Submitting...
-          </>
-        ) : hasVoted ? (
-          isMyVote ? "Voted ✓" : "Already Voted"
-        ) : (
-          "Vote"
+        {proposal.active && (
+          <button
+            className="btn btn-primary"
+            onClick={handleVote}
+            disabled={voting || hasVoted || !connectedAddress}
+            title={
+              !connectedAddress
+                ? "Connect wallet to vote"
+                : hasVoted
+                ? "You already voted"
+                : "Cast your vote"
+            }
+          >
+            {voting ? "Submitting…" : hasVoted ? "Voted" : "Vote"}
+          </button>
         )}
-      </button>
+      </div>
+
+      {error && <p className="error-msg">{error}</p>}
     </div>
   );
 }

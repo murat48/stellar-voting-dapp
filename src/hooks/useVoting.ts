@@ -35,7 +35,7 @@ export function useVoting(address: string | null) {
       );
 
       const count = StellarSdk.scValToNative(
-        (countResult as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse).result!.retval
+        (countResult as StellarSdk.SorobanRpc.Api.SimulateTransactionSuccessResponse).result!.retval
       ) as number;
 
       const fetched: Proposal[] = [];
