@@ -56,6 +56,23 @@ After a vote is submitted the UI polls the RPC endpoint until the transaction is
 
 ---
 
+
+## 🚀 Live Demo
+
+👉 [Try the App](https://stellar-voting-dapp-pi.vercel.app/) - https://stellar-voting-dapp-pi.vercel.app/
+
+## 🎥 Demo Video
+
+[![Watch the demo](https://img.youtube.com/vi/2eaIji-donk/maxresdefault.jpg)](https://youtu.be/2eaIji-donk)
+
+
+## Test
+
+<br>
+<img src="/1.jpg" alt="" width="600"/><br>
+<img src="/2.jpg" alt="" width="600"/><br>
+<img src="/3.jpg" alt="" width="600"/><br>
+
 ## Project Structure
 
 ```
