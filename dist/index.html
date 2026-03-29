@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stellar Voting</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        min-height: 100vh;
+      }
+
+      .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+      /* Header */
+      .app-header { background: #1e293b; border-bottom: 1px solid #334155; padding: 0 1.5rem; }
+      .header-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+      .app-title { font-size: 1.25rem; font-weight: 700; color: #818cf8; }
+
+      /* Wallet */
+      .wallet-connect { display: flex; align-items: center; gap: .75rem; }
+      .wallet-info { display: flex; align-items: center; gap: .75rem; }
+      .wallet-address { font-size: .875rem; font-family: monospace; background: #0f172a; padding: .25rem .6rem; border-radius: 6px; }
+
+      /* Buttons */
+      .btn { cursor: pointer; border: none; border-radius: 8px; font-size: .875rem; font-weight: 600; padding: .5rem 1.2rem; transition: opacity .15s; }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+      .btn-primary { background: #6366f1; color: #fff; }
+      .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+      .btn-secondary { background: #334155; color: #e2e8f0; }
+      .btn-secondary:hover:not(:disabled) { background: #475569; }
+      .btn-ghost { background: transparent; color: #94a3b8; }
+      .btn-ghost:hover:not(:disabled) { color: #e2e8f0; }
+      .btn-sm { padding: .3rem .75rem; font-size: .8rem; }
+
+      /* Tabs */
+      .tab-nav { background: #1e293b; border-bottom: 1px solid #334155; display: flex; gap: 0; max-width: 960px; margin: 0 auto; width: 100%; padding: 0 1.5rem; }
+      .tab-btn { background: none; border: none; color: #94a3b8; font-size: .9rem; font-weight: 600; padding: .9rem 1.25rem; cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
+      .tab-btn:hover { color: #e2e8f0; }
+      .tab-active { color: #818cf8 !important; border-bottom-color: #6366f1 !important; }
+
+      /* Main */
+      .app-main { flex: 1; max-width: 960px; margin: 0 auto; width: 100%; padding: 2rem 1.5rem; }
+
+      /* Proposals Grid */
+      .proposals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+
+      /* Proposal Card */
+      .proposal-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: .75rem; transition: border-color .15s; }
+      .proposal-card:hover { border-color: #6366f1; }
+      .proposal-inactive { opacity: .6; }
+      .proposal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+      .proposal-title { font-size: 1rem; font-weight: 700; }
+      .proposal-description { font-size: .875rem; color: #94a3b8; line-height: 1.5; flex: 1; }
+      .proposal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+      .vote-count { font-size: .875rem; color: #64748b; }
+
+      /* Badge */
+      .badge { font-size: .7rem; font-weight: 700; padding: .2rem .55rem; border-radius: 999px; white-space: nowrap; }
+      .badge-active { background: #064e3b; color: #34d399; }
+      .badge-closed { background: #1e1b4b; color: #818cf8; }
+
+      /* Results Chart */
+      .results-chart { display: flex; flex-direction: column; gap: 1rem; }
+      .chart-title { font-size: 1.25rem; font-weight: 700; }
+      .chart-total { font-size: .875rem; color: #64748b; }
+      .chart-bars { display: flex; flex-direction: column; gap: .9rem; }
+      .chart-row { display: grid; grid-template-columns: 180px 1fr 90px; align-items: center; gap: .75rem; }
+      .chart-label { font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chart-bar-track { background: #1e293b; border-radius: 999px; height: 10px; overflow: hidden; }
+      .chart-bar-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+      .chart-value { font-size: .8rem; color: #94a3b8; text-align: right; }
+
+      /* Messages */
+      .loading-msg, .empty-state { color: #64748b; text-align: center; padding: 2rem; }
+      .error-msg { color: #f87171; font-size: .875rem; margin-top: .25rem; }
+
+      /* Footer */
+      .app-footer { background: #1e293b; border-top: 1px solid #334155; padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; font-size: .8rem; color: #475569; max-width: 100%; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BONmvenp.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

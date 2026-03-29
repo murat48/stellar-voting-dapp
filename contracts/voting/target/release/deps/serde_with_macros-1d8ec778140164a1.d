@@ -1,0 +1,8 @@
+/home/muratkeskin/stellarbeltprogression/voiting/stellar-voting-dapp/contracts/voting/target/release/deps/serde_with_macros-1d8ec778140164a1.d: /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lib.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/apply.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lazy_bool.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/utils.rs
+
+/home/muratkeskin/stellarbeltprogression/voiting/stellar-voting-dapp/contracts/voting/target/release/deps/libserde_with_macros-1d8ec778140164a1.so: /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lib.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/apply.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lazy_bool.rs /home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/utils.rs
+
+/home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lib.rs:
+/home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/apply.rs:
+/home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/lazy_bool.rs:
+/home/muratkeskin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.12.0/src/utils.rs:

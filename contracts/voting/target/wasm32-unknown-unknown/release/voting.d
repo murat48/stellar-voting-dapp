@@ -1,0 +1,1 @@
+/home/muratkeskin/stellarbeltprogression/voiting/stellar-voting-dapp/contracts/voting/target/wasm32-unknown-unknown/release/voting.wasm: /home/muratkeskin/stellarbeltprogression/voiting/stellar-voting-dapp/contracts/voting/src/lib.rs

@@ -3,7 +3,7 @@ import * as StellarSdk from "@stellar/stellar-sdk";
 import type { Proposal } from "../components/ProposalCard";
 import { cache } from "../lib/cache";
 
-const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID as string;
+const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID as string | undefined;
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
@@ -13,11 +13,18 @@ const horizon = new StellarSdk.Horizon.Server(HORIZON_URL);
 
 export function useVoting(address: string | null) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [votedIds, setVotedIds] = useState<Set<number>>(new Set());
+  // Maps proposal_id → 0/1/2 (choice), or nothing if not voted
+  const [userVotes, setUserVotes] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const contractReady = Boolean(CONTRACT_ID);
+
   const fetchProposals = useCallback(async () => {
+    if (!CONTRACT_ID) {
+      setError("Contract not deployed yet. Set VITE_CONTRACT_ID in .env to connect to the blockchain.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -35,7 +42,7 @@ export function useVoting(address: string | null) {
       );
 
       const count = StellarSdk.scValToNative(
-        (countResult as StellarSdk.SorobanRpc.Api.SimulateTransactionSuccessResponse).result!.retval
+        (countResult as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse).result!.retval
       ) as number;
 
       const fetched: Proposal[] = [];
@@ -51,7 +58,9 @@ export function useVoting(address: string | null) {
           id: raw.id as number,
           title: raw.title as string,
           description: raw.description as string,
-          voteCount: raw.vote_count as number,
+          approveCount: raw.approve_count as number,
+          rejectCount: raw.reject_count as number,
+          abstainCount: raw.abstain_count as number,
           creator: raw.creator as string,
           active: raw.active as boolean,
         });
@@ -67,9 +76,9 @@ export function useVoting(address: string | null) {
   }, []);
 
   const checkVotedStatus = useCallback(async () => {
-    if (!address || proposals.length === 0) return;
+    if (!address || proposals.length === 0 || !CONTRACT_ID) return;
     const contract = new StellarSdk.Contract(CONTRACT_ID);
-    const newVoted = new Set<number>();
+    const newVotes = new Map<number, number>();
 
     await Promise.all(
       proposals.map(async (p) => {
@@ -77,28 +86,34 @@ export function useVoting(address: string | null) {
           const result = await server.simulateTransaction(
             buildTx(
               contract.call(
-                "has_voted",
-                StellarSdk.nativeToScVal(address, { type: "address" }),
+                "get_vote",
+                new StellarSdk.Address(address).toScVal(),
                 StellarSdk.nativeToScVal(p.id, { type: "u32" })
               )
             )
           );
-          const voted = StellarSdk.scValToNative(
+          // returns 0/1/2 or 255 if not voted
+          const choice = StellarSdk.scValToNative(
             (result as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse).result!.retval
-          ) as boolean;
-          if (voted) newVoted.add(p.id);
+          ) as number;
+          if (choice !== 255) newVotes.set(p.id, choice);
         } catch {
           // ignore per-proposal errors
         }
       })
     );
 
-    setVotedIds(newVoted);
+    setUserVotes(newVotes);
   }, [address, proposals]);
 
   const vote = useCallback(
-    async (proposalId: number, signTransaction: (xdr: string) => Promise<string>) => {
+    async (
+      proposalId: number,
+      choice: number,
+      signTransaction: (xdr: string) => Promise<string>
+    ) => {
       if (!address) throw new Error("Wallet not connected");
+      if (!CONTRACT_ID) throw new Error("Contract not deployed yet");
 
       const contract = new StellarSdk.Contract(CONTRACT_ID);
       const account = await horizon.loadAccount(address);
@@ -109,8 +124,9 @@ export function useVoting(address: string | null) {
         .addOperation(
           contract.call(
             "vote",
-            StellarSdk.nativeToScVal(address, { type: "address" }),
-            StellarSdk.nativeToScVal(proposalId, { type: "u32" })
+            new StellarSdk.Address(address).toScVal(),
+            StellarSdk.nativeToScVal(proposalId, { type: "u32" }),
+            StellarSdk.nativeToScVal(choice, { type: "u32" })
           )
         )
         .setTimeout(30)
@@ -119,9 +135,49 @@ export function useVoting(address: string | null) {
       const preparedTx = await server.prepareTransaction(tx);
       const signedXdr = await signTransaction(preparedTx.toXDR());
       const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
-      await server.sendTransaction(signedTx);
+      await waitForConfirmation(await server.sendTransaction(signedTx));
 
-      cache.delete("proposals");
+      // Optimistic UI update — show result immediately without waiting for re-fetch
+      setUserVotes((prev) => new Map(prev).set(proposalId, choice));
+
+      cache.invalidate("proposals");
+      await fetchProposals();
+    },
+    [address, fetchProposals]
+  );
+
+  const createProposal = useCallback(
+    async (
+      title: string,
+      description: string,
+      signTransaction: (xdr: string) => Promise<string>
+    ) => {
+      if (!address) throw new Error("Wallet not connected");
+      if (!CONTRACT_ID) throw new Error("Contract not deployed yet");
+
+      const contract = new StellarSdk.Contract(CONTRACT_ID);
+      const account = await horizon.loadAccount(address);
+      const tx = new StellarSdk.TransactionBuilder(account, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+        .addOperation(
+          contract.call(
+            "create_proposal",
+            new StellarSdk.Address(address).toScVal(),
+            StellarSdk.nativeToScVal(title, { type: "string" }),
+            StellarSdk.nativeToScVal(description, { type: "string" })
+          )
+        )
+        .setTimeout(30)
+        .build();
+
+      const preparedTx = await server.prepareTransaction(tx);
+      const signedXdr = await signTransaction(preparedTx.toXDR());
+      const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      await waitForConfirmation(await server.sendTransaction(signedTx));
+
+      cache.invalidate("proposals");
       await fetchProposals();
     },
     [address, fetchProposals]
@@ -135,12 +191,12 @@ export function useVoting(address: string | null) {
     checkVotedStatus();
   }, [checkVotedStatus]);
 
-  return { proposals, votedIds, loading, error, fetchProposals, vote };
+  return { proposals, userVotes, loading, error, fetchProposals, vote, createProposal, contractReady };
 }
 
 function buildTx(operation: StellarSdk.xdr.Operation) {
   const dummyAccount = new StellarSdk.Account(
-    "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
+    "GDQJJRU6LA6R5KT6AZA6P2H7NGOC4EQCMZALQBTPKXFJLVT32QXWFXYW",
     "0"
   );
   return new StellarSdk.TransactionBuilder(dummyAccount, {
@@ -150,4 +206,24 @@ function buildTx(operation: StellarSdk.xdr.Operation) {
     .addOperation(operation)
     .setTimeout(30)
     .build();
+}
+
+/** Poll until the transaction is confirmed (SUCCESS) or throw on failure/timeout. */
+async function waitForConfirmation(
+  sendResult: StellarSdk.rpc.Api.SendTransactionResponse
+): Promise<void> {
+  if (sendResult.status === "ERROR") {
+    throw new Error("Transaction submission failed: " + JSON.stringify(sendResult.errorResult));
+  }
+  const hash = sendResult.hash;
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const result = await server.getTransaction(hash);
+    if (result.status === StellarSdk.rpc.Api.GetTransactionStatus.SUCCESS) return;
+    if (result.status === StellarSdk.rpc.Api.GetTransactionStatus.FAILED) {
+      throw new Error("Transaction failed on-chain");
+    }
+    // NOT_FOUND means still pending — keep polling
+  }
+  throw new Error("Transaction timed out waiting for confirmation");
 }

@@ -33,7 +33,7 @@ describe("Cache", () => {
 
   it("deletes a specific key", () => {
     cache.set("del-me", 123, 10_000);
-    cache.delete("del-me");
+    cache.invalidate("del-me");
     expect(cache.get("del-me")).toBeNull();
   });
 
