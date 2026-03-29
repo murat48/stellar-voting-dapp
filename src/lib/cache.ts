@@ -1,36 +1,44 @@
+// Simple in-memory cache with TTL
 interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
+  data: T;
+  timestamp: number;
+  ttl: number;
 }
 
-class Cache {
-  private store = new Map<string, CacheEntry<unknown>>();
+const cacheStore = new Map<string, CacheEntry<unknown>>();
 
-  set<T>(key: string, value: T, ttlMs: number): void {
-    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
-  }
+export const cache = {
+  set<T>(key: string, data: T, ttlMs: number = 30000): void {
+    cacheStore.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl: ttlMs,
+    });
+  },
 
   get<T>(key: string): T | null {
-    const entry = this.store.get(key);
+    const entry = cacheStore.get(key) as CacheEntry<T> | undefined;
     if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
+
+    const isExpired = Date.now() - entry.timestamp > entry.ttl;
+    if (isExpired) {
+      cacheStore.delete(key);
       return null;
     }
-    return entry.value as T;
-  }
 
-  delete(key: string): void {
-    this.store.delete(key);
-  }
+    return entry.data;
+  },
+
+  invalidate(key: string): void {
+    cacheStore.delete(key);
+  },
 
   clear(): void {
-    this.store.clear();
-  }
+    cacheStore.clear();
+  },
 
   has(key: string): boolean {
-    return this.get(key) !== null;
-  }
-}
-
-export const cache = new Cache();
+    const val = cache.get(key);
+    return val !== null;
+  },
+};
