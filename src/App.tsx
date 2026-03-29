@@ -1,85 +1,84 @@
-import { useState } from "react";
-import WalletConnect from "./components/WalletConnect";
-import ProposalCard from "./components/ProposalCard";
-import ResultsChart from "./components/ResultsChart";
 import { useWallet } from "./hooks/useWallet";
 import { useVoting } from "./hooks/useVoting";
-
-type Tab = "proposals" | "results";
+import { WalletConnect } from "./components/WalletConnect";
+import { ProposalCard } from "./components/ProposalCard";
+import { ResultsChart } from "./components/ResultsChart";
+import "./App.css";
 
 export default function App() {
-  const { address, loading: walletLoading, error: walletError, connect, disconnect, signTransaction } = useWallet();
-  const { proposals, votedIds, loading, error, fetchProposals, vote } = useVoting(
-    address ?? null
-  );
-  const [activeTab, setActiveTab] = useState<Tab>("proposals");
+  const wallet = useWallet();
+  const voting = useVoting(wallet.address);
 
-  const handleVote = async (proposalId: number) => {
-    await vote(proposalId, signTransaction);
-  };
+  const totalVotes = voting.proposals.reduce(
+    (sum, p) => sum + p.voteCount,
+    0
+  );
 
   return (
     <div className="app">
+      {/* Header */}
       <header className="app-header">
-        <div className="header-inner">
-          <h1 className="app-title">Stellar Voting</h1>
-          <WalletConnect
-            onConnected={connect}
-            onDisconnected={disconnect}
-            connectedAddress={address ?? undefined}
-            loading={walletLoading}
-            error={walletError}
-          />
+        <div className="logo">
+          <span>⭐</span>
+          <h1>Stellar Vote</h1>
         </div>
+        <WalletConnect
+          wallet={wallet}
+          onConnect={wallet.connect}
+          onDisconnect={wallet.disconnect}
+        />
       </header>
 
-      <nav className="tab-nav">
-        <button
-          className={`tab-btn ${activeTab === "proposals" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("proposals")}
-        >
-          Proposals
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "results" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("results")}
-        >
-          Results
-        </button>
-      </nav>
-
       <main className="app-main">
-        {loading && <p className="loading-msg">Loading proposals…</p>}
-        {error && <p className="error-msg">{error}</p>}
+        {/* Hero */}
+        <section className="hero">
+          <h2>Decentralized Voting on Stellar</h2>
+          <p>Connect your wallet and cast your vote on-chain.</p>
+        </section>
 
-        {!loading && activeTab === "proposals" && (
-          <section className="proposals-grid">
-            {proposals.length === 0 ? (
-              <p className="empty-state">No proposals found.</p>
-            ) : (
-              proposals.map((proposal) => (
+        {/* Loading State */}
+        {voting.isLoading ? (
+          <div className="loading-container">
+            <div className="spinner large" />
+            <p>Loading proposals...</p>
+          </div>
+        ) : (
+          <>
+            {/* Not connected warning */}
+            {!wallet.isConnected && (
+              <div className="info-banner">
+                🔗 Please connect your Stellar wallet to vote.
+              </div>
+            )}
+
+            {/* Error */}
+            {voting.error && (
+              <div className="error-banner">{voting.error}</div>
+            )}
+
+            {/* Proposals */}
+            <section className="proposals-grid">
+              {voting.proposals.map((proposal) => (
                 <ProposalCard
                   key={proposal.id}
                   proposal={proposal}
-                  connectedAddress={address ?? undefined}
-                  hasVoted={votedIds.has(proposal.id)}
-                  onVote={handleVote}
+                  totalVotes={totalVotes}
+                  hasVoted={voting.hasVoted}
+                  votedId={voting.votedId}
+                  isVoting={voting.isVoting}
+                  onVote={voting.vote}
                 />
-              ))
-            )}
-          </section>
-        )}
+              ))}
+            </section>
 
-        {!loading && activeTab === "results" && (
-          <ResultsChart proposals={proposals} />
+            {/* Results */}
+            <ResultsChart proposals={voting.proposals} />
+          </>
         )}
       </main>
 
       <footer className="app-footer">
-        <button className="btn btn-ghost btn-sm" onClick={fetchProposals}>
-          Refresh
-        </button>
-        <span>Network: Testnet</span>
+        <p>Built on Stellar Testnet · Powered by Soroban</p>
       </footer>
     </div>
   );

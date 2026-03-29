@@ -1,52 +1,42 @@
-import { useCallback } from "react";
+import { WalletState } from "../hooks/useWallet";
 
-interface WalletConnectProps {
-  onConnected: () => void;
-  onDisconnected: () => void;
-  connectedAddress?: string;
-  loading?: boolean;
-  error?: string | null;
+interface Props {
+  wallet: WalletState;
+  onConnect: () => void;
+  onDisconnect: () => void;
 }
 
-export default function WalletConnect({
-  onConnected,
-  onDisconnected,
-  connectedAddress,
-  loading = false,
-  error = null,
-}: WalletConnectProps) {
-  const handleConnect = useCallback(() => {
-    onConnected();
-  }, [onConnected]);
-
-  const handleDisconnect = useCallback(() => {
-    onDisconnected();
-  }, [onDisconnected]);
-
-  const truncate = (addr: string) =>
-    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+export function WalletConnect({ wallet, onConnect, onDisconnect }: Props) {
+  const shortAddress = wallet.address
+    ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
+    : null;
 
   return (
-    <div className="wallet-connect">
-      {connectedAddress ? (
-        <div className="wallet-info">
-          <span className="wallet-address" title={connectedAddress}>
-            {truncate(connectedAddress)}
-          </span>
-          <button className="btn btn-secondary" onClick={handleDisconnect}>
+    <div className="wallet-bar">
+      {wallet.isConnected ? (
+        <div className="wallet-connected">
+          <span className="dot green" />
+          <span className="address">{shortAddress}</span>
+          <button className="btn btn-outline" onClick={onDisconnect}>
             Disconnect
           </button>
         </div>
       ) : (
         <button
           className="btn btn-primary"
-          onClick={handleConnect}
-          disabled={loading}
+          onClick={onConnect}
+          disabled={wallet.isConnecting}
         >
-          {loading ? "Connecting…" : "Connect Wallet"}
+          {wallet.isConnecting ? (
+            <>
+              <span className="spinner" /> Connecting...
+            </>
+          ) : (
+            "Connect Wallet"
+          )}
         </button>
       )}
-      {error && <p className="error-msg">{error}</p>}
+      {wallet.error && <p className="error-msg">{wallet.error}</p>}
     </div>
   );
 }
